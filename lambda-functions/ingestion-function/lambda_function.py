@@ -62,13 +62,15 @@ def lambda_handler(event, context):
             total_new_comments += len(new_comments)
             
             # Send new comments to processing queue
+            logger.info(f"DEBUG: About to queue {len(new_comments)} comments")
             for comment in new_comments:
+                logger.info(f"DEBUG: Queuing comment {comment['comment_id']}")
                 success = aws_service.send_to_queue({
                     'action': 'classify_comment',
                     'comment_id': comment['comment_id'],
                     'client_id': client_id
                 })
-                
+                logger.info(f"DEBUG: Queue result: {success}")
                 if success:
                     total_processed += 1
         
@@ -184,15 +186,15 @@ def fetch_client_comments(meta_client: MetaAPIClient, aws_service: AWSService,
         
         # Process and deduplicate comments
         for comment in all_comments:
-            if is_new_comment(aws_service, comment['id']):
+            if is_new_comment(aws_service, comment['comment_id']):
                 
                 # Standardize comment format
                 standardized_comment = {
-                    'comment_id': comment['id'],
+                    'comment_id': comment['comment_id'],
                     'client_id': client_id,
                     'platform': comment.get('platform', 'facebook'),
                     'post_id': comment.get('post_id', ''),
-                    'text': comment.get('message', ''),
+                    'text': comment.get('text', comment.get('message', '')),
                     'author_id': comment.get('from', {}).get('id', ''),
                     'author_name': comment.get('from', {}).get('name', ''),
                     'created_time': comment.get('created_time', ''),
@@ -204,7 +206,7 @@ def fetch_client_comments(meta_client: MetaAPIClient, aws_service: AWSService,
                 # Save to database
                 if aws_service.save_comment(standardized_comment):
                     new_comments.append(standardized_comment)
-                    logger.info(f"Saved new comment: {comment['id']}")
+                    logger.info(f"Saved new comment: {comment['comment_id']}")
         
         # Update last ingestion time
         update_last_ingestion_time(aws_service, client_id)
@@ -272,12 +274,15 @@ def fetch_ad_comments(meta_client: MetaAPIClient, ad_account_id: str, since_time
 
 
 def fetch_instagram_comments(meta_client: MetaAPIClient, instagram_account_id: str, since_time: datetime) -> list:
-    """Fetch comments from Instagram posts"""
+    """Fetch comments from Instagram posts using proper media edge pattern"""
     try:
-        # For MVP, return empty list
-        # In production, implement Instagram Graph API calls
-        logger.info("Instagram comment fetching - placeholder for MVP")
-        return []
+        instagram_comments = meta_client.get_instagram_media_comments(
+            instagram_account_id, 
+            since_time
+        )
+        
+        logger.info(f"Found {len(instagram_comments)} new Instagram comments")
+        return instagram_comments
         
     except Exception as e:
         logger.error(f"Failed to fetch Instagram comments: {e}")
