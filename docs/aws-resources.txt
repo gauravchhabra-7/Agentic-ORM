@@ -1,0 +1,10 @@
+api_gateway_url = "https://pmujj56e7b.execute-api.ap-south-1.amazonaws.com/dev"
+dynamodb_tables = {
+  "audit_logs" = "orm-platform-audit-dev"
+  "comments" = "orm-platform-comments-dev"
+  "config" = "orm-platform-config-dev"
+}
+lambda_role_arn = "arn:aws:iam::398512629866:role/orm-platform-lambda-role-dev"
+s3_bucket_name = "orm-platform-assets-dev-75ul18ip"
+secrets_manager_secret_name = "orm-platform-api-keys-dev"
+sqs_queue_url = "https://sqs.ap-south-1.amazonaws.com/398512629866/orm-platform-comments-dev"
