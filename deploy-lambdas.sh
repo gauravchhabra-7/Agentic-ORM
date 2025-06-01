@@ -78,7 +78,8 @@ package_function() {
     cp -r ${function_dir}/* ${temp_dir}/
     
     # Copy shared utilities
-    cp -r shared/ ${temp_dir}/
+    mkdir -p ${temp_dir}/shared
+    cp -r shared/* ${temp_dir}/shared/
     
     # Install dependencies if requirements.txt exists
     if [ -f "shared/requirements.txt" ]; then
@@ -247,6 +248,66 @@ main() {
         echo "✅ SQS trigger created"
     else
         echo "✅ SQS trigger already exists"
+    fi
+
+    # Configure SQS trigger for reply handler
+    echo -e "${YELLOW}🔗 Configuring SQS trigger for reply handler...${NC}"
+    
+    existing_mappings=$(aws lambda list-event-source-mappings \
+        --function-name "${PROJECT_NAME}-reply-handler-${ENVIRONMENT}" \
+        --region ${REGION} \
+        --query 'EventSourceMappings[?EventSourceArn==`'${queue_arn}'`].UUID' \
+        --output text)
+    
+    if [ -z "$existing_mappings" ]; then
+        aws lambda create-event-source-mapping \
+            --function-name "${PROJECT_NAME}-reply-handler-${ENVIRONMENT}" \
+            --event-source-arn ${queue_arn} \
+            --batch-size 10 \
+            --region ${REGION} > /dev/null
+        echo "✅ Reply handler SQS trigger created"
+    else
+        echo "✅ Reply handler SQS trigger already exists"
+    fi
+
+    # Configure SQS trigger for hide handler  
+    echo -e "${YELLOW}🔗 Configuring SQS trigger for hide handler...${NC}"
+    
+    existing_mappings=$(aws lambda list-event-source-mappings \
+        --function-name "${PROJECT_NAME}-hide-handler-${ENVIRONMENT}" \
+        --region ${REGION} \
+        --query 'EventSourceMappings[?EventSourceArn==`'${queue_arn}'`].UUID' \
+        --output text)
+    
+    if [ -z "$existing_mappings" ]; then
+        aws lambda create-event-source-mapping \
+            --function-name "${PROJECT_NAME}-hide-handler-${ENVIRONMENT}" \
+            --event-source-arn ${queue_arn} \
+            --batch-size 10 \
+            --region ${REGION} > /dev/null
+        echo "✅ Hide handler SQS trigger created"
+    else
+        echo "✅ Hide handler SQS trigger already exists"
+    fi
+
+    # Configure SQS trigger for escalation handler
+    echo -e "${YELLOW}🔗 Configuring SQS trigger for escalation handler...${NC}"
+    
+    existing_mappings=$(aws lambda list-event-source-mappings \
+        --function-name "${PROJECT_NAME}-escalation-handler-${ENVIRONMENT}" \
+        --region ${REGION} \
+        --query 'EventSourceMappings[?EventSourceArn==`'${queue_arn}'`].UUID' \
+        --output text)
+    
+    if [ -z "$existing_mappings" ]; then
+        aws lambda create-event-source-mapping \
+            --function-name "${PROJECT_NAME}-escalation-handler-${ENVIRONMENT}" \
+            --event-source-arn ${queue_arn} \
+            --batch-size 10 \
+            --region ${REGION} > /dev/null
+        echo "✅ Escalation handler SQS trigger created"
+    else
+        echo "✅ Escalation handler SQS trigger already exists"
     fi
     
     # Configure EventBridge trigger for ingestion function

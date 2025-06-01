@@ -64,9 +64,9 @@ class SampleDataSetup:
             'client_id': client_id,
             'config_type': 'meta_api',
             'config': {
-                'page_id': 'your_facebook_page_id',  # User will need to update this
+                'page_id': '560879270449410',  # User will need to update this
                 'ad_account_id': 'your_ad_account_id',  # User will need to update this
-                'instagram_account_id': 'your_instagram_id',  # User will need to update this
+                'instagram_account_id': '17841473299661248',  # User will need to update this
                 'enabled': True,
                 'last_sync': datetime.now(timezone.utc).isoformat()
             },
