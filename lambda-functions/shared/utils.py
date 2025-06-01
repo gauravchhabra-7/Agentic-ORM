@@ -75,18 +75,22 @@ class AWSService:
         try:
             table = self.dynamodb.Table(self.comments_table)
             
-            # Build update expression
+            # Build update expression with reserved keyword handling
             update_expr = "SET updated_at = :updated_at"
             expr_values = {':updated_at': datetime.now(timezone.utc).isoformat()}
+            expr_names = {}
             
             for key, value in updates.items():
-                update_expr += f", {key} = :{key}"
+                safe_key = f"#{key}"
+                update_expr += f", {safe_key} = :{key}"
                 expr_values[f":{key}"] = value
+                expr_names[safe_key] = key
             
             table.update_item(
                 Key={'comment_id': comment_id},
                 UpdateExpression=update_expr,
-                ExpressionAttributeValues=expr_values
+                ExpressionAttributeValues=expr_values,
+                ExpressionAttributeNames=expr_names
             )
             
             logger.info(f"Updated comment {comment_id}")
@@ -147,7 +151,7 @@ class MetaAPIClient:
     
     def __init__(self, access_token: str):
         self.access_token = access_token
-        self.base_url = "https://graph.facebook.com/v19.0"
+        self.base_url = "https://graph.facebook.com/v23.0"
         self.headers = {"Authorization": f"Bearer {access_token}"}
     
     def get_page_posts(self, page_id: str, limit: int = 25) -> List[Dict[str, Any]]:
@@ -229,13 +233,13 @@ class MetaAPIClient:
         import requests
         
         try:
-            url = f"{self.base_url}/{comment_id}/comments"
-            data = {
+            url = f"{self.base_url}/{comment_id}/replies"
+            params = {
                 'message': message,
                 'access_token': self.access_token
             }
             
-            response = requests.post(url, data=data)
+            response = requests.post(url, params=params)
             response.raise_for_status()
             
             logger.info(f"Replied to comment {comment_id}")
@@ -265,6 +269,93 @@ class MetaAPIClient:
         except Exception as e:
             logger.error(f"Failed to hide comment {comment_id}: {e}")
             return False
+        
+    def get_instagram_media_comments(self, instagram_account_id: str, since_time=None) -> List[Dict[str, Any]]:
+        """
+        Auto-detect all new comments across all Instagram media posts
+        Uses proper Media → Comments edge pattern
+        """
+        import requests
+        from datetime import datetime, timezone, timedelta
+        
+        try:
+            all_comments = []
+            
+            # Step 1: Get all media from Instagram account
+            media_url = f"{self.base_url}/{instagram_account_id}/media"
+            media_params = {
+                'fields': 'id,caption,media_type,timestamp,permalink',
+                'limit': 50,  # Get recent 50 posts
+                'access_token': self.access_token
+            }
+            
+            logger.info(f"Fetching Instagram media for account {instagram_account_id}")
+            media_response = requests.get(media_url, params=media_params)
+            media_response.raise_for_status()
+            
+            media_list = media_response.json().get('data', [])
+            logger.info(f"Found {len(media_list)} Instagram media posts")
+            
+            # Step 2: For each media, get its comments using the edge
+            for media in media_list:
+                media_id = media.get('id')
+                media_timestamp = media.get('timestamp')
+                
+                # Get comments for this specific media
+                comments_url = f"{self.base_url}/{media_id}/comments"
+                comments_params = {
+                    'fields': 'id,text,timestamp,like_count,user{id,username},replies{id,text,timestamp,user{username}}',
+                    'limit': 100,  # Get up to 100 comments per post
+                    'access_token': self.access_token
+                }
+                
+                try:
+                    comments_response = requests.get(comments_url, params=comments_params)
+                    comments_response.raise_for_status()
+                    
+                    media_comments = comments_response.json().get('data', [])
+                    
+                    # Filter for new comments since last ingestion
+                    for comment in media_comments:
+                        comment_time = comment.get('timestamp')
+                        
+                        # Skip old comments if since_time is specified
+                        if since_time and comment_time:
+                            fixed_time = comment_time.replace('Z', '+00:00').replace('+0000', '+00:00')
+                            comment_dt = datetime.fromisoformat(fixed_time)
+                            if comment_dt <= since_time:
+                                continue
+                        
+                        # Standardize comment format for ORM processing
+                        standardized_comment = {
+                            'comment_id': comment.get('id'),
+                            'platform': 'instagram',
+                            'media_id': media_id,
+                            'media_type': media.get('media_type'),
+                            'media_permalink': media.get('permalink'),
+                            'text': comment.get('text', ''),
+                            'author_id': comment.get('user', {}).get('id', ''),
+                            'author_username': comment.get('user', {}).get('username', ''),
+                            'created_time': comment.get('timestamp', ''),
+                            'like_count': comment.get('like_count', 0),
+                            'has_replies': len(comment.get('replies', {}).get('data', [])) > 0,
+                            'raw_data': comment
+                        }
+                        
+                        all_comments.append(standardized_comment)
+                        
+                    logger.info(f"Media {media_id}: Found {len(media_comments)} comments")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to get comments for media {media_id}: {e}")
+                    continue
+            
+            logger.info(f"Total new Instagram comments found: {len(all_comments)}")
+            return all_comments
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch Instagram media comments: {e}")
+            return []
 
 
 class OpenAIClient:
