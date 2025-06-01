@@ -46,9 +46,14 @@ def lambda_handler(event, context):
             try:
                 # Parse SQS message
                 message_body = json.loads(record['body'])
-                comment_id = message_body['comment_id']
-                client_id = message_body['client_id']
                 
+                # Only process classify_comment actions
+                if message_body.get('action') != 'classify_comment':
+                    continue
+                    
+                comment_id = message_body['comment_id']
+                client_id = message_body['client_id'] 
+                       
                 logger.info(f"Processing comment: {comment_id}")
                 
                 # Classify the comment
