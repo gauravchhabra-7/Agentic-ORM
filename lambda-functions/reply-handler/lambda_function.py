@@ -45,6 +45,9 @@ def lambda_handler(event, context):
             try:
                 # Parse SQS message
                 message_body = json.loads(record['body'])
+
+                # DEBUG: Log what we received
+                logger.info(f"Reply handler received message: {message_body}")
                 
                 if message_body.get('action') == 'reply':
                     comment_id = message_body['comment_id']
