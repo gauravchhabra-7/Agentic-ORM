@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"action\":\"reply\",\"comment_id\":\"test_comment_reply_validation\",\"client_id\":\"gaurav_client_001\",\"classification\":{\"sentiment\":\"neutral\",\"urgency\":\"medium\",\"intent\":\"question\",\"toxicity_score\":2,\"requires_response\":true,\"suggested_action\":\"reply\",\"confidence\":85}}"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"action\":\"classify_comment\",\"comment_id\":\"e2e_test_question_001\",\"client_id\":\"gaurav_client_001\"}"
+    }
+  ]
+}

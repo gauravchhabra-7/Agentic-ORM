@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"action\":\"escalate\",\"comment_id\":\"test_comment_escalate_validation\",\"client_id\":\"gaurav_client_001\",\"classification\":{\"sentiment\":\"negative\",\"urgency\":\"high\",\"intent\":\"complaint\",\"toxicity_score\":6,\"requires_response\":true,\"suggested_action\":\"escalate\",\"confidence\":88}}"
+    }
+  ]
+}
