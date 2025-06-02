@@ -333,17 +333,233 @@ resource "aws_api_gateway_rest_api" "dashboard_api" {
   }
 }
 
-# API Gateway deployment (will be added later when we have methods)
-# resource "aws_api_gateway_deployment" "dashboard_api_deployment" {
-#   depends_on = [aws_api_gateway_rest_api.dashboard_api]
-# 
-#   rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
-#   stage_name  = var.environment
-# 
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-# }
+# API Gateway Resources (URL paths)
+resource "aws_api_gateway_resource" "health" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_rest_api.dashboard_api.root_resource_id
+  path_part   = "health"
+}
+
+resource "aws_api_gateway_resource" "metrics" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_rest_api.dashboard_api.root_resource_id
+  path_part   = "metrics"
+}
+
+resource "aws_api_gateway_resource" "metrics_client" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_resource.metrics.id
+  path_part   = "{client_id}"
+}
+
+resource "aws_api_gateway_resource" "comments" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_rest_api.dashboard_api.root_resource_id
+  path_part   = "comments"
+}
+
+resource "aws_api_gateway_resource" "comments_recent" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_resource.comments.id
+  path_part   = "recent"
+}
+
+resource "aws_api_gateway_resource" "comments_recent_client" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_resource.comments_recent.id
+  path_part   = "{client_id}"
+}
+
+resource "aws_api_gateway_resource" "activity" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_rest_api.dashboard_api.root_resource_id
+  path_part   = "activity"
+}
+
+resource "aws_api_gateway_resource" "activity_client" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_resource.activity.id
+  path_part   = "{client_id}"
+}
+
+resource "aws_api_gateway_resource" "clients" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  parent_id   = aws_api_gateway_rest_api.dashboard_api.root_resource_id
+  path_part   = "clients"
+}
+
+# API Gateway Methods and Integrations
+
+# Health endpoint
+resource "aws_api_gateway_method" "health_get" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.health.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "health_get" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-dashboard-api-${var.environment}/invocations"
+}
+
+# Metrics endpoint
+resource "aws_api_gateway_method" "metrics_get" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.metrics_client.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "metrics_get" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.metrics_client.id
+  http_method = aws_api_gateway_method.metrics_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-dashboard-api-${var.environment}/invocations"
+}
+
+# Recent comments endpoint
+resource "aws_api_gateway_method" "comments_recent_get" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.comments_recent_client.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "comments_recent_get" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.comments_recent_client.id
+  http_method = aws_api_gateway_method.comments_recent_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-dashboard-api-${var.environment}/invocations"
+}
+
+# Activity endpoint
+resource "aws_api_gateway_method" "activity_get" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.activity_client.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "activity_get" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.activity_client.id
+  http_method = aws_api_gateway_method.activity_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-dashboard-api-${var.environment}/invocations"
+}
+
+# Clients endpoint
+resource "aws_api_gateway_method" "clients_get" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.clients.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "clients_get" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.clients.id
+  http_method = aws_api_gateway_method.clients_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-dashboard-api-${var.environment}/invocations"
+}
+
+# CORS configuration for all endpoints
+resource "aws_api_gateway_method" "health_options" {
+  rest_api_id   = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id   = aws_api_gateway_resource.health.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = aws_api_gateway_method_response.health_options.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# Lambda permission for API Gateway
+resource "aws_lambda_permission" "api_gateway_lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = "${var.project_name}-dashboard-api-${var.environment}"
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.dashboard_api.execution_arn}/*/*"
+}
+
+# API Gateway deployment
+resource "aws_api_gateway_deployment" "dashboard_api_deployment" {
+  depends_on = [
+    aws_api_gateway_method.health_get,
+    aws_api_gateway_integration.health_get,
+    aws_api_gateway_method.metrics_get,
+    aws_api_gateway_integration.metrics_get,
+    aws_api_gateway_method.comments_recent_get,
+    aws_api_gateway_integration.comments_recent_get,
+    aws_api_gateway_method.activity_get,
+    aws_api_gateway_integration.activity_get,
+    aws_api_gateway_method.clients_get,
+    aws_api_gateway_integration.clients_get,
+    aws_api_gateway_method.health_options,
+    aws_api_gateway_integration.health_options,
+  ]
+
+  rest_api_id = aws_api_gateway_rest_api.dashboard_api.id
+  stage_name  = var.environment
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
 # CloudWatch Log Groups for Lambda functions
 resource "aws_cloudwatch_log_group" "lambda_logs" {
@@ -417,7 +633,7 @@ output "s3_bucket_name" {
 }
 
 output "api_gateway_url" {
-  description = "API Gateway endpoint URL (will be available after methods are added)"
+  description = "API Gateway endpoint URL - NOW FUNCTIONAL!"
   value       = "https://${aws_api_gateway_rest_api.dashboard_api.id}.execute-api.${var.aws_region}.amazonaws.com/${var.environment}"
 }
 
