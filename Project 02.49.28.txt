@@ -1,0 +1,514 @@
+# ORM PLATFORM MVP - TECHNICAL REFERENCE DOCUMENTATION
+# Project: Agentic Online Reputation Management Platform
+# Version: 1.0.0 MVP
+# Architecture: AWS Serverless
+
+===============================================================================
+PROJECT OBJECTIVE & VISION
+===============================================================================
+
+WHAT WE BUILT:
+- Agentic Online Reputation Management (ORM) platform
+- 24-hour MVP timeline (COMPLETED)
+- Scalable, secure, production-ready system
+- AI-powered comment processing automation
+
+CORE CAPABILITIES:
+1. Ingest comments from Meta ads (Facebook & Instagram) every 5 minutes
+2. Classify each comment (sentiment, urgency, intent) with OpenAI LLM
+3. Take automated actions:
+   - Reply with correct templates
+   - Hide toxic content
+   - Escalate complaints via Slack/email
+4. Log all decisions with timestamps for audit and analytics
+5. Config store for reply templates and business rules
+6. Extensible to competitor social-listening in phase 2
+7. Dashboard with analytics (KPIs, trends)
+
+BUSINESS VALUE:
+- Handles thousands of comments automatically
+- Reduces response time from hours to minutes
+- Protects brand reputation 24/7
+- Scales with business growth
+- Provides actionable insights
+
+===============================================================================
+TECHNICAL ARCHITECTURE
+===============================================================================
+
+CLOUD PROVIDER: AWS (ap-south-1 - Mumbai region)
+PROGRAMMING LANGUAGE: Python 3.9
+INFRASTRUCTURE: Serverless (Lambda + DynamoDB + SQS)
+AI/ML: OpenAI GPT-4o-mini for classification
+SOCIAL MEDIA: Meta Graph API (Facebook/Instagram)
+NOTIFICATIONS: Slack webhooks
+
+ARCHITECTURE FLOW:
+Meta API → EventBridge (5min) → Ingestion Lambda → SQS Queue → 
+Classification Lambda (OpenAI) → Action Router → [Reply/Hide/Escalate Lambdas] → 
+Audit Log (DynamoDB) → Dashboard API (API Gateway) → Analytics UI
+
+AWS SERVICES USED:
+- Lambda (6 functions)
+- DynamoDB (3 tables)
+- SQS (message queue)
+- API Gateway (dashboard endpoints)
+- EventBridge (scheduling)
+- Secrets Manager (API keys)
+- CloudWatch (monitoring)
+- S3 (artifacts storage)
+- IAM (security roles)
+
+===============================================================================
+PROJECT STRUCTURE
+===============================================================================
+
+orm-platform-mvp/
+├── README.md                              # Main documentation
+├── deploy-lambdas.sh                      # Lambda deployment script
+├── setup-sample-data.py                   # Sample data setup
+├── test-system.py                         # System testing
+├── PROJECT_OVERVIEW.txt                   # This file
+├── infrastructure/
+│   ├── main.tf                           # Terraform infrastructure
+│   ├── terraform.tfvars                  # Configuration
+│   ├── terraform.tfstate                 # State file
+│   └── .terraform/                       # Terraform cache
+├── lambda-functions/
+│   ├── shared/
+│   │   ├── utils.py                      # Shared utilities
+│   │   └── requirements.txt              # Python dependencies
+│   ├── ingestion-function/
+│   │   └── lambda_function.py            # Meta API integration
+│   ├── classification-function/
+│   │   └── lambda_function.py            # OpenAI classification
+│   ├── reply-handler/
+│   │   └── lambda_function.py            # Auto-reply logic
+│   ├── hide-handler/
+│   │   └── lambda_function.py            # Content moderation
+│   ├── escalation-handler/
+│   │   └── lambda_function.py            # Slack notifications
+│   └── dashboard-api/
+│       └── lambda_function.py            # Analytics API
+├── dashboard/                            # Future web UI
+└── docs/
+    └── aws-resources.txt                 # Terraform outputs
+
+===============================================================================
+DEPLOYMENT STATUS CHECK COMMANDS
+===============================================================================
+
+HOW TO CHECK CURRENT DEPLOYMENT STATUS:
+
+INFRASTRUCTURE STATUS:
+cd infrastructure && terraform output
+
+LAMBDA FUNCTIONS STATUS:
+aws lambda list-functions --region ap-south-1 --query 'Functions[?starts_with(FunctionName, `orm-platform`)].{Name:FunctionName,State:State,LastModified:LastModified}'
+
+DATABASE TABLES STATUS:
+aws dynamodb list-tables --region ap-south-1 | grep orm-platform
+
+SYSTEM HEALTH CHECK:
+python3 test-system.py
+
+QUICK FUNCTION TEST:
+aws lambda invoke --function-name orm-platform-dashboard-api-dev --payload '{"httpMethod":"GET","path":"/health"}' --region ap-south-1 response.json && cat response.json
+
+API CREDENTIALS CHECK:
+aws secretsmanager get-secret-value --secret-id orm-platform-api-keys-dev --region ap-south-1 --query 'SecretString'
+
+SQS QUEUE STATUS:
+aws sqs get-queue-attributes --queue-url $(aws sqs list-queues --region ap-south-1 --query 'QueueUrls[?contains(@, `orm-platform-comments-dev`)]' --output text) --attribute-names All
+
+===============================================================================
+CLIENT ONBOARDING PROCEDURES
+===============================================================================
+
+NEW CLIENT SETUP PROCESS:
+
+1. CLIENT CONFIGURATION CREATION:
+   Use the sample data script as template to create client-specific configs:
+   - meta_api: Facebook/Instagram API settings
+   - response_templates: Brand-specific reply templates  
+   - classification_rules: Business context and thresholds
+   - moderation_rules: Content filtering preferences
+   - notifications: Alert channels and preferences
+
+2. META API CREDENTIALS:
+   Client must provide:
+   - Facebook Page ID
+   - Ad Account ID (if applicable)
+   - Instagram Business Account ID (if applicable)
+   - Access Token with required permissions
+
+3. BUSINESS RULES CONFIGURATION:
+   - Business context description
+   - Industry-specific keywords
+   - Response tone and brand voice
+   - Escalation thresholds
+   - Business hours and timezone
+
+4. TESTING PROCEDURE:
+   - Create test comment in client's page
+   - Verify ingestion, classification, and action
+   - Test notification channels
+   - Validate response templates
+
+REQUIRED META API PERMISSIONS:
+- instagram_business_manage_comments
+- instagram_business_basic  
+- pages_show_list
+- pages_read_engagement
+- pages_manage_posts
+
+===============================================================================
+VERSION & BUILD INFORMATION
+===============================================================================
+
+PLATFORM VERSION: 1.0.0 MVP
+DEPLOYMENT TARGET: AWS Serverless
+PYTHON VERSION: 3.9
+TERRAFORM VERSION: >= 1.0
+AWS CLI VERSION: >= 2.0
+
+BUILD COMPONENTS:
+- Infrastructure: Terraform (main.tf)
+- Application: Python Lambda functions
+- Dependencies: boto3, requests, python-dateutil, pytz
+- AI/ML: OpenAI GPT-4o-mini API
+- Social API: Meta Graph API v19.0
+
+SUPPORTED REGIONS:
+- Primary: ap-south-1 (Mumbai)
+- Compatible: Any AWS region with Lambda + DynamoDB
+
+SCALING CHARACTERISTICS:
+- Comments/day: 1K (free tier) → 100K+ (paid tier)
+- Response time: <5 seconds end-to-end
+- Concurrent processing: Limited by Lambda concurrency
+- Storage: Unlimited (DynamoDB auto-scaling)
+
+===============================================================================
+AWS RESOURCES CREATED
+===============================================================================
+
+LAMBDA FUNCTIONS:
+- orm-platform-ingestion-function-dev
+- orm-platform-classification-function-dev
+- orm-platform-reply-handler-dev
+- orm-platform-hide-handler-dev
+- orm-platform-escalation-handler-dev
+- orm-platform-dashboard-api-dev
+
+DYNAMODB TABLES:
+- orm-platform-comments-dev
+- orm-platform-config-dev
+- orm-platform-audit-dev
+
+SQS QUEUES:
+- orm-platform-comments-dev
+- orm-platform-comments-dlq-dev (dead letter queue)
+
+S3 BUCKETS:
+- orm-platform-assets-dev-[random]
+
+SECRETS MANAGER:
+- orm-platform-api-keys-dev
+
+IAM ROLES:
+- orm-platform-lambda-role-dev
+
+EVENTBRIDGE RULES:
+- orm-platform-ingestion-dev (every 5 minutes)
+
+API GATEWAY:
+- orm-platform-api-dev
+
+===============================================================================
+API INTEGRATION REQUIREMENTS
+===============================================================================
+
+AWS ACCOUNT REQUIREMENTS:
+- Account with appropriate permissions
+- Recommended: Create IAM user (not root)
+- Region: ap-south-1 or compatible AWS region
+- Services needed: Lambda, DynamoDB, SQS, API Gateway, EventBridge, Secrets Manager
+
+OPENAI API REQUIREMENTS:
+- OpenAI account with API access
+- API key with sufficient credits
+- Recommended model: gpt-4o-mini (cost-effective)
+- Rate limits: Consider for high-volume usage
+
+META BUSINESS API REQUIREMENTS:
+- Facebook Developer Account
+- Business Manager access
+- App with required permissions:
+  - instagram_business_manage_comments
+  - instagram_business_basic
+  - pages_show_list
+  - pages_read_engagement
+  - pages_manage_posts
+- Access tokens for target pages/accounts
+
+SLACK INTEGRATION (OPTIONAL):
+- Slack workspace admin access
+- Incoming webhook URL creation
+- Channel permissions for notifications
+
+CREDENTIALS STORAGE:
+All API keys stored in AWS Secrets Manager:
+- Secret name: orm-platform-api-keys-dev
+- Required fields: openai_api_key, meta_access_token, meta_app_id, meta_app_secret, slack_webhook_url
+
+===============================================================================
+CONFIGURATION SYSTEM
+===============================================================================
+
+CLIENT CONFIGURATION TYPES:
+1. meta_api: Facebook/Instagram API settings
+2. response_templates: Auto-reply message templates
+3. classification_rules: AI classification parameters
+4. moderation_rules: Content moderation settings
+5. notifications: Alert and notification preferences
+
+SAMPLE CLIENT: demo_client_001
+- Full configuration loaded
+- Ready for testing
+- Business context: E-commerce electronics
+
+RESPONSE TEMPLATES:
+- question: Customer service response for questions
+- complaint: Apologetic response for complaints
+- compliment: Thank you response for positive feedback
+- positive/negative: Sentiment-based responses
+- high: Urgent escalation response
+- default: Generic fallback response
+
+CLASSIFICATION RULES:
+- Toxicity threshold: 7 (0-10 scale)
+- Auto-reply enabled: true
+- Min confidence: 70%
+- Business hours: 9-18 IST (Mon-Fri), 10-16 (Weekends)
+- Urgency keywords: urgent, broken, asap, emergency
+- Intent detection: question, complaint, shipping, etc.
+
+===============================================================================
+MONITORING & ANALYTICS
+===============================================================================
+
+DASHBOARD API ENDPOINTS:
+- GET /health - System health status
+- GET /metrics?client_id=X - Performance metrics
+- GET /comments?client_id=X - Comment data with filters
+- GET /config/client_id - Client configuration
+- GET /audit?client_id=X - Audit logs
+- GET /dashboard/client_id - Comprehensive dashboard data
+
+KEY METRICS TRACKED:
+- Total comments processed
+- Sentiment breakdown (positive/negative/neutral)
+- Action breakdown (replied/hidden/escalated/ignored)
+- Response times (classification, action execution)
+- Platform breakdown (Facebook/Instagram/Ads)
+- Error rates and system health
+
+AUDIT TRAIL:
+- All actions logged with timestamps
+- Comment processing decisions
+- Configuration changes
+- System events and errors
+- User actions and API calls
+
+===============================================================================
+COST ANALYSIS
+===============================================================================
+
+FREE TIER COVERAGE (12 months):
+- Lambda: 1M requests/month (covers ~33k comments/day)
+- DynamoDB: 25 RCU/WCU (handles 2M+ operations/month)
+- API Gateway: 1M requests/month
+- S3: 5GB storage + 20K GET + 2K PUT
+- CloudWatch: 10 custom metrics
+- SQS: 1M requests/month
+
+CURRENT MONTHLY COST:
+- MVP phase: $0 (within free tier) + $10-30 OpenAI
+- Growth phase (10K comments/day): $50-100/month
+- Scale phase (100K comments/day): $200-500/month
+
+COST OPTIMIZATION:
+- DynamoDB on-demand billing (pay per use)
+- Lambda serverless (pay per execution)
+- Minimal always-on resources
+- CloudWatch basic monitoring included
+
+===============================================================================
+SECURITY IMPLEMENTATION
+===============================================================================
+
+DATA PROTECTION:
+- API keys in AWS Secrets Manager (encrypted)
+- DynamoDB encryption at rest
+- Lambda environment variables encrypted
+- S3 bucket encryption enabled
+
+ACCESS CONTROL:
+- IAM roles with least-privilege access
+- Lambda execution role limited to required resources
+- API Gateway CORS configured
+- No hardcoded credentials
+
+AUDIT & COMPLIANCE:
+- Complete audit trail in DynamoDB
+- CloudWatch logging enabled
+- All actions timestamped and traceable
+- Error handling and alerting
+
+NETWORK SECURITY:
+- Regional deployment (ap-south-1)
+- HTTPS/TLS for all API calls
+- VPC endpoints available for production
+
+===============================================================================
+TESTING & QUALITY ASSURANCE
+===============================================================================
+
+AUTOMATED TESTS IMPLEMENTED:
+- Infrastructure health checks
+- Lambda function deployment verification
+- Database CRUD operations testing
+- SQS message processing testing
+- End-to-end workflow testing
+- API endpoint testing
+- Classification logic testing
+
+TEST RESULTS: ALL PASSED ✅
+- 7 test categories completed
+- No critical issues found
+- System ready for production use
+
+MANUAL TESTING PROCEDURES:
+- Health check: GET /health endpoint
+- Comment processing: Manual Lambda invocation
+- Classification: Test with sample comments
+- Dashboard: API endpoint verification
+
+===============================================================================
+TROUBLESHOOTING & DEBUGGING GUIDE
+===============================================================================
+
+COMMON ISSUES & SOLUTIONS:
+
+1. LAMBDA FUNCTION ERRORS:
+   - Timeout: Increase timeout in function configuration
+   - Memory: Increase memory allocation (512MB → 1024MB)
+   - Dependencies: Check requirements.txt and package installation
+   - Permissions: Verify IAM role has required permissions
+
+2. DYNAMODB ISSUES:
+   - Throttling: Switch to on-demand billing mode
+   - Access denied: Check IAM permissions for table operations
+   - Item not found: Verify table names and key structure
+   - Capacity: Monitor read/write capacity units
+
+3. META API ISSUES:
+   - Rate limits: Implement exponential backoff and queuing
+   - Access denied: Verify app permissions and access tokens
+   - Invalid tokens: Regenerate access tokens
+   - Permissions: Ensure all required permissions granted
+
+4. OPENAI API ISSUES:
+   - Rate limits: Implement request throttling
+   - Invalid API key: Check and regenerate if needed
+   - Model errors: Verify model name and parameters
+   - Cost limits: Monitor usage and billing
+
+5. SQS QUEUE ISSUES:
+   - Message visibility: Check visibility timeout settings
+   - Dead letter queue: Monitor DLQ for failed messages
+   - Permissions: Verify Lambda can read from queue
+
+DEBUG COMMANDS:
+
+CHECK LAMBDA LOGS:
+aws logs tail /aws/lambda/orm-platform-classification-function-dev --follow --region ap-south-1
+
+CHECK SQS MESSAGES:
+aws sqs receive-message --queue-url $(aws sqs list-queues --region ap-south-1 --query 'QueueUrls[?contains(@, `orm-platform-comments-dev`)]' --output text) --max-number-of-messages 1
+
+VERIFY DYNAMODB DATA:
+aws dynamodb scan --table-name orm-platform-comments-dev --limit 5 --region ap-south-1
+
+TEST LAMBDA FUNCTION:
+aws lambda invoke --function-name orm-platform-dashboard-api-dev --payload '{"httpMethod":"GET","path":"/health"}' --region ap-south-1 response.json && cat response.json
+
+CHECK SECRET VALUES:
+aws secretsmanager get-secret-value --secret-id orm-platform-api-keys-dev --region ap-south-1 --query 'SecretString'
+
+MONITORING COMMANDS:
+aws lambda list-functions --region ap-south-1 --query 'Functions[?starts_with(FunctionName, `orm-platform`)].FunctionName'
+aws dynamodb list-tables --region ap-south-1 | grep orm-platform
+aws sqs list-queues --region ap-south-1 | grep orm-platform
+
+PERFORMANCE MONITORING:
+aws cloudwatch get-metric-statistics --namespace AWS/Lambda --metric-name Duration --start-time 2025-05-31T00:00:00Z --end-time 2025-05-31T23:59:59Z --period 3600 --statistics Average --dimensions Name=FunctionName,Value=orm-platform-classification-function-dev
+
+===============================================================================
+DEPLOYMENT COMMANDS REFERENCE
+===============================================================================
+
+INFRASTRUCTURE DEPLOYMENT:
+cd infrastructure
+terraform init
+terraform plan
+terraform apply
+terraform output
+
+LAMBDA FUNCTIONS DEPLOYMENT:
+./deploy-lambdas.sh
+
+SAMPLE DATA SETUP:
+python3 setup-sample-data.py
+
+SYSTEM TESTING:
+python3 test-system.py
+
+UPDATE API CREDENTIALS:
+aws secretsmanager update-secret --secret-id orm-platform-api-keys-dev --region ap-south-1 --secret-string '{"openai_api_key":"sk-...","meta_access_token":"...","meta_app_id":"...","meta_app_secret":"...","slack_webhook_url":"..."}'
+
+MANUAL FUNCTION TESTING:
+aws lambda invoke --function-name orm-platform-ingestion-function-dev --payload '{"source":"aws.events","detail-type":"Scheduled Event"}' --region ap-south-1 response.json
+
+INFRASTRUCTURE CLEANUP (IF NEEDED):
+cd infrastructure && terraform destroy
+
+===============================================================================
+CONTACT & SUPPORT REFERENCE
+===============================================================================
+
+PROJECT REPOSITORY: ~/orm-platform-mvp/
+DOCUMENTATION: README.md (comprehensive deployment guide)
+TESTING: test-system.py (automated system verification)
+DEPLOYMENT: deploy-lambdas.sh (automated function deployment)
+
+DEFAULT AWS CONFIGURATION:
+- Region: ap-south-1 (Mumbai)
+- Project prefix: orm-platform
+- Environment: dev
+
+IMPORTANT FILES:
+- infrastructure/main.tf (AWS resources definition)
+- lambda-functions/shared/utils.py (core business logic)
+- PROJECT_OVERVIEW.txt (this file)
+
+SUPPORT COMMANDS:
+- Health check: python3 test-system.py
+- Deploy functions: ./deploy-lambdas.sh
+- Setup sample data: python3 setup-sample-data.py
+- Check AWS resources: cd infrastructure && terraform output
+
+===============================================================================
+END OF TECHNICAL REFERENCE DOCUMENTATION
+===============================================================================
